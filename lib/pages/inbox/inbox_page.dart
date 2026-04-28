@@ -8,6 +8,8 @@ import '../../core/api_service.dart';
 import '../../core/models/task_model.dart';
 import '../../core/session_service.dart';
 import '../../core/theme.dart';
+import '../../core/tutorial_service.dart';
+import '../../widgets/context_guide_dialog.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/task_card.dart';
 
@@ -20,6 +22,7 @@ class InboxPage extends StatefulWidget {
 
 class _InboxPageState extends State<InboxPage>
     with SingleTickerProviderStateMixin {
+  static const _tutorialKey = 'inbox';
   late final TabController _tab;
   Timer? _autoTimer;
   List<Task> _tasks = const [];
@@ -31,10 +34,30 @@ class _InboxPageState extends State<InboxPage>
     super.initState();
     _tab = TabController(length: 4, vsync: this);
     _refresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowGuide());
     _autoTimer = Timer.periodic(
       const Duration(seconds: 15),
       (_) => _refresh(silent: true),
     );
+  }
+
+  Future<void> _maybeShowGuide({bool force = false}) async {
+    if (!force) {
+      final shouldShow = await TutorialService.shouldShow(_tutorialKey);
+      if (!shouldShow || !mounted) return;
+    }
+    if (!mounted) return;
+    await showContextGuideDialog(
+      context,
+      title: 'Guía · mi bandeja',
+      subtitle: 'Este monitor concentra las tareas activas del funcionario o del equipo.',
+      steps: const [
+        'Usa las pestañas para separar pendientes, tareas en proceso, observadas y completadas.',
+        'Abre una tarjeta para entrar al detalle, completar el formulario, adjuntar evidencia y finalizar.',
+        'La lista se refresca automáticamente cada pocos segundos, pero también puedes deslizar para actualizar.',
+      ],
+    );
+    await TutorialService.markSeen(_tutorialKey);
   }
 
   @override
@@ -104,6 +127,11 @@ class _InboxPageState extends State<InboxPage>
       appBar: AppBar(
         title: const Text('Mi monitor'),
         actions: [
+          IconButton(
+            tooltip: 'Mostrar guía',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => _maybeShowGuide(force: true),
+          ),
           if (session.isAdmin || session.isSupervisor)
             IconButton(
               tooltip: 'Panel admin',

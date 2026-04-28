@@ -7,6 +7,18 @@ import 'models/task_model.dart';
 import 'models/policy_model.dart' as policy;
 import 'models/analytics_model.dart';
 
+class ExportedReport {
+  final List<int> bytes;
+  final String fileName;
+  final String mimeType;
+
+  const ExportedReport({
+    required this.bytes,
+    required this.fileName,
+    required this.mimeType,
+  });
+}
+
 // Excepción tipada para errores de la API
 class ApiException implements Exception {
   final int statusCode;
@@ -188,6 +200,20 @@ class ApiService {
         '/analytics/bottlenecks',
         (data) => BottleneckData.fromJson(data as Map<String, dynamic>),
       );
+
+  Future<ExportedReport> exportAnalyticsReport(String format) async {
+    final res = await http.get(
+      Uri.parse('$kBaseUrl/analytics/report?format=$format'),
+      headers: _headers,
+    );
+    _checkStatus(res);
+    final lower = format.toLowerCase();
+    return ExportedReport(
+      bytes: res.bodyBytes,
+      fileName: lower == 'csv' ? 'workflow-report.csv' : 'workflow-report.json',
+      mimeType: lower == 'csv' ? 'text/csv' : 'application/json',
+    );
+  }
 
   // ── AI (Asistente Gemini) ────────────────────────────────────────────────────
 

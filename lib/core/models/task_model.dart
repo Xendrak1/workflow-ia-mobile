@@ -23,6 +23,24 @@ class EvidenceItem {
         contentType: json['content_type'] as String?,
         sizeBytes: json['size_bytes'] as int?,
       );
+
+  EvidenceItem copyWith({
+    String? id,
+    String? fileName,
+    String? fileUrl,
+    String? note,
+    String? contentType,
+    int? sizeBytes,
+  }) {
+    return EvidenceItem(
+      id: id ?? this.id,
+      fileName: fileName ?? this.fileName,
+      fileUrl: fileUrl ?? this.fileUrl,
+      note: note ?? this.note,
+      contentType: contentType ?? this.contentType,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+    );
+  }
 }
 
 class Task {
@@ -77,4 +95,38 @@ class Task {
         finishedAt: json['finished_at'] as String?,
         createdAt: json['created_at'] as String? ?? '',
       );
+
+  Task copyWith({
+    String? id,
+    String? tramiteId,
+    String? policyId,
+    String? nodeCode,
+    String? title,
+    String? status,
+    String? assignedDepartment,
+    String? assignedUserId,
+    Map<String, dynamic>? formData,
+    String? observations,
+    List<EvidenceItem>? evidences,
+    String? startedAt,
+    String? finishedAt,
+    String? createdAt,
+  }) {
+    return Task(
+      id: id ?? this.id,
+      tramiteId: tramiteId ?? this.tramiteId,
+      policyId: policyId ?? this.policyId,
+      nodeCode: nodeCode ?? this.nodeCode,
+      title: title ?? this.title,
+      status: status ?? this.status,
+      assignedDepartment: assignedDepartment ?? this.assignedDepartment,
+      assignedUserId: assignedUserId ?? this.assignedUserId,
+      formData: formData ?? this.formData,
+      observations: observations ?? this.observations,
+      evidences: evidences ?? this.evidences,
+      startedAt: startedAt ?? this.startedAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_service.dart';
@@ -18,6 +21,7 @@ class _AnalyticsPanelState extends State<AnalyticsPanel>
   Summary? _summary;
   BottleneckData? _bottlenecks;
   bool _loading = true;
+  bool _exporting = false;
   String? _error;
 
   @override
@@ -63,6 +67,58 @@ class _AnalyticsPanelState extends State<AnalyticsPanel>
     }
   }
 
+  Future<void> _export(String format) async {
+    setState(() => _exporting = true);
+    try {
+      final api = context.read<ApiService>();
+      final file = await api.exportAnalyticsReport(format);
+      final content = utf8.decode(file.bytes);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text('Exportación ${format.toUpperCase()}'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                content,
+                style: const TextStyle(color: Colors.white, fontSize: 12.5),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                await Clipboard.setData(ClipboardData(text: content));
+                if (!ctx.mounted) return;
+                Navigator.of(ctx).pop();
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Reporte copiado al portapapeles')),
+                );
+              },
+              child: const Text('Copiar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'No se pudo exportar el reporte.');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -99,7 +155,28 @@ class _AnalyticsPanelState extends State<AnalyticsPanel>
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          const _SectionTitle('Resumen del flujo', Icons.bar_chart_outlined),
+          Row(
+            children: [
+              const Expanded(
+                child: _SectionTitle('Resumen del flujo', Icons.bar_chart_outlined),
+              ),
+              OutlinedButton.icon(
+                onPressed: _exporting ? null : () => _export('json'),
+                icon: const Icon(Icons.description_outlined, size: 16),
+                label: Text(_exporting ? 'Exportando…' : 'JSON'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: AppColors.border),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _exporting ? null : () => _export('csv'),
+                icon: const Icon(Icons.download_outlined, size: 16),
+                label: const Text('CSV'),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           GridView.count(
             crossAxisCount: 2,

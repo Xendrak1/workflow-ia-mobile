@@ -101,6 +101,8 @@ class _AiDictationSheetState extends State<AiDictationSheet> {
   Future<void> _startRecording() async {
     setState(() {
       _error = null;
+      _result = null;
+      _transcriptStatus = 'Grabando audio… al detener, lo transcribimos y pegamos el texto aquí.';
     });
     try {
       final allowed = await _recorder.hasPermission();
@@ -140,6 +142,7 @@ class _AiDictationSheetState extends State<AiDictationSheet> {
     setState(() {
       _recording = false;
       _audioPath = path ?? _audioPath;
+      _transcriptStatus = 'Audio capturado. Iniciando transcripción…';
     });
     if (_audioPath == null) {
       setState(() => _error = 'No se grabó audio.');
@@ -350,6 +353,21 @@ class _AiDictationSheetState extends State<AiDictationSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_transcriptStatus != null) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.info.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.info.withValues(alpha: 0.35)),
+            ),
+            child: Text(
+              _transcriptStatus!,
+              style: const TextStyle(color: Colors.white, fontSize: 12.5),
+            ),
+          ),
+        ],
         TextField(
           controller: _reportCtrl,
           maxLines: 5,
@@ -384,7 +402,7 @@ class _AiDictationSheetState extends State<AiDictationSheet> {
             ElevatedButton.icon(
               onPressed: _startRecording,
               icon: const Icon(Icons.mic_none_rounded, size: 20),
-              label: const Text('Grabar'),
+              label: const Text('Grabar y transcribir'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.danger,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -415,7 +433,7 @@ class _AiDictationSheetState extends State<AiDictationSheet> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Habla con claridad. Detén la grabación cuando termines.',
+            'Habla con claridad. Al detener, el sistema transcribe y pega el texto en el cuadro.',
             style: TextStyle(color: AppColors.muted, fontSize: 12),
             textAlign: TextAlign.center,
           ),

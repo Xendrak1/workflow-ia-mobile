@@ -9,8 +9,10 @@ import 'package:provider/provider.dart';
 import '../../core/api_service.dart';
 import '../../core/models/policy_model.dart' as policy;
 import '../../core/models/task_model.dart';
+import '../../core/tutorial_service.dart';
 import '../../core/theme.dart';
 import '../../widgets/ai_dictation_sheet.dart';
+import '../../widgets/context_guide_dialog.dart';
 import '../../widgets/dynamic_form_field.dart';
 import '../../widgets/status_badge.dart';
 
@@ -23,6 +25,7 @@ class TaskDetailPage extends StatefulWidget {
 }
 
 class _TaskDetailPageState extends State<TaskDetailPage> {
+  static const _tutorialKey = 'task_detail';
   Task? _task;
   policy.PolicyNode? _node;
   String? _procedureType;
@@ -30,6 +33,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   bool _loading = true;
   bool _saving = false;
   bool _completing = false;
+  final ScrollController _scrollController = ScrollController();
 
   final Map<String, dynamic> _formData = {};
   final TextEditingController _observationsCtrl = TextEditingController();
@@ -38,12 +42,34 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   void initState() {
     super.initState();
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowGuide());
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _observationsCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _maybeShowGuide({bool force = false}) async {
+    if (!force) {
+      final shouldShow = await TutorialService.shouldShow(_tutorialKey);
+      if (!shouldShow || !mounted) return;
+    }
+    if (!mounted) return;
+    await showContextGuideDialog(
+      context,
+      title: 'Guía · atención de tarea',
+      subtitle: 'Aquí capturas datos, apoyas el llenado con IA y cierras el paso del trámite.',
+      steps: const [
+        'Completa el formulario del nodo con la información real de esta actividad.',
+        'Usa el asistente IA para transcribir audio, extraer datos del texto o generar un llenado sugerido.',
+        'Adjunta evidencias cuando el trámite requiera respaldo antes de marcar la tarea como finalizada.',
+        'Observaciones sirve para notas internas; el formulario recoge los datos operativos del nodo.',
+      ],
+    );
+    await TutorialService.markSeen(_tutorialKey);
   }
 
   Future<void> _load() async {
@@ -144,9 +170,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     setState(() => _saving = true);
     try {
       final api = context.read<ApiService>();
-      await api.uploadEvidence(task.id, file, note: note);
+      final data = await api.uploadEvidence(task.id, file, note: note);
+      final evidence = EvidenceItem.fromJson(data);
+      if (!mounted) return;
+      setState(() {
+        _task = task.copyWith(
+          evidences: [...task.evidences, evidence],
+        );
+      });
       _toast('Evidencia subida');
-      await _load();
     } on ApiException catch (e) {
       _toast(e.message, danger: true);
     } catch (_) {
@@ -320,6 +352,11 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       appBar: AppBar(
         title: const Text('Detalle de tarea'),
         actions: [
+          IconButton(
+            tooltip: 'Mostrar guía',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => _maybeShowGuide(force: true),
+          ),
           if (_task != null && _task!.status != 'completada')
             IconButton(
               tooltip: 'Guardar borrador',
@@ -369,6 +406,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     final fields = _node?.formFields ?? const <policy.FormField>[];
 
     return ListView(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
         _headerCard(task),
@@ -487,7 +525,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Dicta tu informe y Gemini llenará el formulario por ti.',
+                    'Graba tu informe, transcribe el texto y luego genera o extrae el llenado sugerido.',
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],

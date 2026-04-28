@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/api_service.dart';
 import '../../core/models/policy_model.dart';
 import '../../core/theme.dart';
+import '../../core/tutorial_service.dart';
+import '../../widgets/context_guide_dialog.dart';
 import '../../widgets/status_badge.dart';
 
 class PolicyDetailPage extends StatefulWidget {
@@ -15,6 +17,7 @@ class PolicyDetailPage extends StatefulWidget {
 }
 
 class _PolicyDetailPageState extends State<PolicyDetailPage> {
+  static const _tutorialKey = 'policy_detail';
   Policy? _policy;
   bool _loading = true;
   String? _error;
@@ -23,6 +26,26 @@ class _PolicyDetailPageState extends State<PolicyDetailPage> {
   void initState() {
     super.initState();
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowGuide());
+  }
+
+  Future<void> _maybeShowGuide({bool force = false}) async {
+    if (!force) {
+      final shouldShow = await TutorialService.shouldShow(_tutorialKey);
+      if (!shouldShow || !mounted) return;
+    }
+    if (!mounted) return;
+    await showContextGuideDialog(
+      context,
+      title: 'Guía · política de negocio',
+      subtitle: 'Aquí revisas el flujo publicado o en borrador tal como quedó modelado.',
+      steps: const [
+        'Primero mira el estado, el tipo de procedimiento y la versión de la política.',
+        'Cada carril agrupa nodos por área o responsable; así entiendes quién atiende cada paso.',
+        'En cada nodo puedes revisar el código, el tipo y la cantidad de campos que exige al funcionario.',
+      ],
+    );
+    await TutorialService.markSeen(_tutorialKey);
   }
 
   Future<void> _load() async {
@@ -58,7 +81,16 @@ class _PolicyDetailPageState extends State<PolicyDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Política de negocio')),
+      appBar: AppBar(
+        title: const Text('Política de negocio'),
+        actions: [
+          IconButton(
+            tooltip: 'Mostrar guía',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => _maybeShowGuide(force: true),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary))
